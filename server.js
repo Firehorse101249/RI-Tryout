@@ -199,7 +199,7 @@ app.prepare().then(async () => {
   
     return json(res, 200, { ok: true });
   });
-  
+
   server.post("/api/cadet/view", async (req, res) => {
     const u = requireAuth(req);
     if (!u) return json(res, 401, { error: "Unauthorized" });
@@ -247,17 +247,17 @@ app.prepare().then(async () => {
     const team = await prisma.team.findUnique({
       where: { id: teamId },
       include: {
-        members: { include: { user: true } },
-        notes: true,
-        session: true,
-        audits: { orderBy: { createdAt: "desc" }, take: 200 },
-        submissions: { include: { user: true }, orderBy: { createdAt: "desc" } }
-        audits: {
-            include: { user: { select: { username: true } } },
-            orderBy: { createdAt: "desc" },
-            take: 50
-          },          
-      }
+  members: { include: { user: true } },
+  notes: true,
+  session: true,
+  submissions: { include: { user: true }, orderBy: { createdAt: "desc" } },
+  audits: {
+    include: { user: { select: { username: true } } },
+    orderBy: { createdAt: "desc" },
+    take: 200
+  }
+}
+
     });
     if (!team) return json(res, 404, { error: "No team" });
     return json(res, 200, { team });
