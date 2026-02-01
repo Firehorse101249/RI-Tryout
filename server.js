@@ -584,10 +584,9 @@ server.get("/api/cadet/notes", async (req, res) => {
   
 
   server.post("/api/cadet/start", async (req, res) => {
-    try {
-      const u = requireAuth(req);
-      if (!u) return json(res, 401, { error: "Unauthorized" });
-      if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+    if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
   
       const user = await prisma.user.findUnique({ where: { id: u.id } });
       if (!user) return json(res, 401, { error: "Unauthorized" });
