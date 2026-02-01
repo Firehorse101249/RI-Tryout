@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CASE } from "../../lib/caseData";
 
 export default function Final() {
   const [status, setStatus] = useState<any>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
-  const [q1, setQ1] = useState("");
-  const [q2, setQ2] = useState("");
-  const [q3, setQ3] = useState("");
-  const [q4, setQ4] = useState("");
+  const [answers, setAnswers] = useState<string[]>(
+    Array(CASE.finalQuestions.length).fill("")
+  );
+  
 
   useEffect(() => {
     (async () => {
@@ -28,14 +29,14 @@ export default function Final() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        answers: {
-          compromisedOfficer: q1,
-          contactChain: q2,
-          adversaryObjective: q3,
-          opPlan: q4
-        }
+        answers: { responses: answers }
       })
     });
+    const data = await r.json();
+    if (!r.ok) return setMsg(data.error || "Submit failed");
+    setMsg("Submitted. Instructor will grade.");
+  }
+  
     const data = await r.json();
     if (!r.ok) return setMsg(data.error || "Submit failed");
     setMsg("Submitted. Instructor will grade.");
@@ -48,25 +49,22 @@ export default function Final() {
       {!status ? <p>Loading…</p> : <p>Status: <b>{status.state}</b></p>}
       {msg && <p style={{ color: msg.startsWith("Submitted") ? "green" : "crimson" }}>{msg}</p>}
 
-      <div style={{ marginTop: 16 }}>
-        <label><b>1) Who is the compromised supply officer? Cite your reasoning.</b></label>
-        <textarea rows={4} style={{ width: "100%" }} value={q1} onChange={(e) => setQ1(e.target.value)} />
-      </div>
+      {CASE.finalQuestions.map((q, i) => (
+  <div key={q} style={{ marginTop: 16 }}>
+    <label><b>{i + 1}) {q}</b></label>
+    <textarea
+      rows={4}
+      style={{ width: "100%" }}
+      value={answers[i]}
+      onChange={(e) => {
+        const next = [...answers];
+        next[i] = e.target.value;
+        setAnswers(next);
+      }}
+    />
+  </div>
+))}
 
-      <div style={{ marginTop: 16 }}>
-        <label><b>2) Map the contact chain (aliases → likely real identity).</b></label>
-        <textarea rows={4} style={{ width: "100%" }} value={q2} onChange={(e) => setQ2(e.target.value)} />
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <label><b>3) What’s the adversary’s objective?</b></label>
-        <textarea rows={4} style={{ width: "100%" }} value={q3} onChange={(e) => setQ3(e.target.value)} />
-      </div>
-
-      <div style={{ marginTop: 16 }}>
-        <label><b>4) Recommend an operational plan that minimizes exposure risk (OPSEC-first).</b></label>
-        <textarea rows={4} style={{ width: "100%" }} value={q4} onChange={(e) => setQ4(e.target.value)} />
-      </div>
 
       <button onClick={submit} style={{ marginTop: 16 }}>Submit</button>
 

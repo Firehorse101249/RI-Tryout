@@ -1,6 +1,8 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { CASE } from "../../../lib/caseData";
+
 
 export default function TeamDetail() {
   const router = useRouter();
@@ -91,7 +93,21 @@ export default function TeamDetail() {
               <button onClick={() => grade(s.id)}>Grade</button>
               <details>
                 <summary>View answers</summary>
-                <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(s.answersJson, null, 2)}</pre>
+                {Array.isArray(s.answersJson?.responses) ? (
+  <div style={{ paddingTop: 8 }}>
+    {CASE.finalQuestions.map((q, i) => (
+      <div key={q} style={{ marginBottom: 12 }}>
+        <div><b>{i + 1}) {q}</b></div>
+        <div style={{ whiteSpace: "pre-wrap", border: "1px solid #ddd", padding: 10, borderRadius: 8 }}>
+          {String(s.answersJson.responses[i] || "").trim() || <i>(no answer)</i>}
+        </div>
+      </div>
+    ))}
+  </div>
+) : (
+  <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(s.answersJson, null, 2)}</pre>
+)}
+
               </details>
             </li>
           ))}

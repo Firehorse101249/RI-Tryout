@@ -20,7 +20,7 @@ export default function Teams() {
       <ul>
         {teams.map(t => (
           <li key={t.id} style={{ marginTop: 12 }}>
-            <Link href={`/instructor/team_${t.id}`}>{t.name}</Link>
+            <Link href={`/instructor/team/${t.id}`}>{t.name}</Link>
             {" "}— JoinCode: <b>{t.joinCode}</b>
             {" "}— Session: <b>{t.session?.status || "NOT_STARTED"}</b>
             {" "}— Attempt: <b>{t.session?.attemptNumber || 1}</b>

@@ -47,17 +47,25 @@ export default function Tryout() {
       socket.off("notes:sync");
     };
   }, [status?.team?.id]);
+  
+  const [now, setNow] = useState(Date.now());
+
+useEffect(() => {
+  const id = setInterval(() => setNow(Date.now()), 1000);
+  return () => clearInterval(id);
+}, []);
+
 
   const remaining = useMemo(() => {
     const endsAt = status?.session?.endsAt ? new Date(status.session.endsAt).getTime() : null;
     if (!endsAt) return null;
-    const ms = Math.max(0, endsAt - Date.now());
+    const ms = Math.max(0, endsAt - now);
     const s = Math.floor(ms / 1000);
     const hh = String(Math.floor(s / 3600)).padStart(2, "0");
     const mm = String(Math.floor((s % 3600) / 60)).padStart(2, "0");
     const ss = String(s % 60).padStart(2, "0");
     return `${hh}:${mm}:${ss}`;
-  }, [status?.session?.endsAt, status?.state]);
+  }, [status?.session?.endsAt, now]);
 
   async function start() {
     const r = await fetch("/api/cadet/start", { method: "POST" });
@@ -92,6 +100,7 @@ export default function Tryout() {
       <h1>Tryout: {status.team.name}</h1>
 
       {status.state !== "ACTIVE" ? (
+        
         <>
           <p>Status: <b>{status.state}</b></p>
           <button onClick={start}>Start 4-hour tryout</button>
@@ -102,6 +111,13 @@ export default function Tryout() {
       ) : (
         <>
           <p>Time remaining: <b style={{ fontSize: 18 }}>{remaining}</b></p>
+          <p style={{ marginTop: 8 }}>
+  <b>Case Files:</b>{" "}
+  <Link href="/cadet/case">Overview</Link> ·{" "}
+  <Link href="/cadet/people">People</Link> ·{" "}
+  <Link href="/cadet/locations">Locations</Link> ·{" "}
+  <Link href="/cadet/evidence">Evidence</Link>
+</p>
 
           <section style={{ marginTop: 16 }}>
             <h2>Mission Brief (Pilot)</h2>

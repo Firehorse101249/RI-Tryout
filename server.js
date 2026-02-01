@@ -224,6 +224,102 @@ app.prepare().then(async () => {
     await audit({ userId: u.id, teamId: updated.teamId, type: "INSTRUCTOR_GRADE", payload: { submissionId, score } });
     return json(res, 200, { ok: true });
   });
+  // List users (with team membership)
+server.get("/api/instructor/users", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+    if (u.role !== "INSTRUCTOR" && u.role !== "ADMIN") return json(res, 403, { error: "Forbidden" });
+  
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        username: true,
+        role: true,
+        lockedReason: true,
+        createdAt: true,
+        memberships: {
+          select: {
+            team: { select: { id: true, name: true, joinCode: true } }
+          }
+        }
+      },
+      orderBy: { createdAt: "asc" }
+    });
+  
+    return json(res, 200, { users });
+  });
+  
+  // Lock or unlock a user
+  server.post("/api/instructor/user/lock", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+    if (u.role !== "INSTRUCTOR" && u.role !== "ADMIN") return json(res, 403, { error: "Forbidden" });
+  
+    const { userId, locked, reason } = req.body || {};
+    if (!userId || typeof locked !== "boolean") return json(res, 400, { error: "Missing fields" });
+  
+    // Prevent locking yourself (optional safety)
+    if (userId === u.id) return json(res, 400, { error: "You cannot lock your own account." });
+  
+    const updated = await prisma.user.update({
+      where: { id: userId },
+      data: { lockedReason: locked ? (reason || "Account locked by instructor.") : null }
+    });
+  
+    await audit({
+      userId: u.id,
+      type: locked ? "INSTRUCTOR_LOCK_USER" : "INSTRUCTOR_UNLOCK_USER",
+      payload: { targetUserId: userId, reason: locked ? (reason || "") : "" }
+    });
+  
+    return json(res, 200, { ok: true, user: { id: updated.id, lockedReason: updated.lockedReason } });
+  });
+  
+  // Remove user from a team (doesn't delete user)
+  server.post("/api/instructor/user/remove-from-team", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+    if (u.role !== "INSTRUCTOR" && u.role !== "ADMIN") return json(res, 403, { error: "Forbidden" });
+  
+    const { userId, teamId } = req.body || {};
+    if (!userId || !teamId) return json(res, 400, { error: "Missing fields" });
+  
+    await prisma.teamMember.delete({
+      where: { teamId_userId: { teamId, userId } }
+    });
+  
+    await audit({
+      userId: u.id,
+      teamId,
+      type: "INSTRUCTOR_REMOVE_FROM_TEAM",
+      payload: { targetUserId: userId }
+    });
+  
+    return json(res, 200, { ok: true });
+  });
+  
+  // Delete user (dangerous; use sparingly)
+  server.post("/api/instructor/user/delete", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+    if (u.role !== "ADMIN") return json(res, 403, { error: "Admin only" });
+  
+    const { userId } = req.body || {};
+    if (!userId) return json(res, 400, { error: "Missing userId" });
+  
+    if (userId === u.id) return json(res, 400, { error: "You cannot delete your own account." });
+  
+    await prisma.user.delete({ where: { id: userId } });
+  
+    await audit({
+      userId: u.id,
+      type: "ADMIN_DELETE_USER",
+      payload: { targetUserId: userId }
+    });
+  
+    return json(res, 200, { ok: true });
+  });
+  
 
   // -----------------------------
   // CADET API
