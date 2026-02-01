@@ -25,12 +25,16 @@ model User {
   passwordHash String
   role         Role    @default(CADET)
   lockedReason String?
+  
 
   createdAt DateTime @default(now())
-
+ 
   memberships TeamMember[]
   audits      AuditEvent[]
   submissions Submission[]
+
+noteEntries NoteEntry[]
+
 }
 
 model Team {
@@ -46,6 +50,8 @@ model Team {
   session     TeamSession?
   audits      AuditEvent[]
   submissions Submission[]
+
+    noteEntries NoteEntry[]
 }
 
 model TeamMember {
