@@ -1,8 +1,8 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useEffect, useMemo, useState } from "react";
-import { CASE } from "../../lib/caseData";
-import EvidenceGuard from "../../ui/EvidenceGuard";
+import { CASE } from "../../../lib/caseData";
+import EvidenceGuard from "../../../ui/EvidenceGuard";
 
 type Slice = {
   ok: true;
