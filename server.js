@@ -24,6 +24,33 @@ app.prepare().then(async () => {
   const server = express();
   server.use(express.json({ limit: "1mb" }));
 
+  server.get("/api/cadet/dashboard", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const membership = await prisma.teamMember.findFirst({
+      where: { userId: u.id },
+      include: { team: { include: { session: true } } }
+    });
+  
+    if (!membership) return json(res, 200, { hasTeam: false });
+  
+    const team = membership.team;
+    const attempt = team.session?.attemptNumber || 1;
+  
+    const sub = await prisma.submission.findFirst({
+      where: { teamId: team.id, userId: u.id, attemptNumber: attempt },
+      orderBy: { createdAt: "desc" }
+    });
+  
+    return json(res, 200, {
+      hasTeam: true,
+      team: { id: team.id, name: team.name },
+      attempt,
+      submission: sub
+    });
+  });  
+
   // Health
   server.get("/api/health", (req, res) => json(res, 200, { ok: true }));
 
@@ -130,6 +157,72 @@ app.prepare().then(async () => {
     return json(res, 200, { ok: true });
   });
 
+  server.get("/api/cadet/note-entries", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const membership = await prisma.teamMember.findFirst({ where: { userId: u.id } });
+    if (!membership) return json(res, 400, { error: "No team" });
+  
+    const entries = await prisma.noteEntry.findMany({
+      where: { teamId: membership.teamId },
+      include: { user: { select: { username: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
+  
+    return json(res, 200, { entries });
+  });
+  
+  server.post("/api/cadet/note-entry", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const membership = await prisma.teamMember.findFirst({ where: { userId: u.id } });
+    if (!membership) return json(res, 400, { error: "No team" });
+  
+    const { text } = req.body || {};
+    if (typeof text !== "string" || !text.trim()) return json(res, 400, { error: "Empty" });
+  
+    await prisma.noteEntry.create({
+      data: { teamId: membership.teamId, userId: u.id, text: text.trim() }
+    });
+  
+    await prisma.auditEvent.create({
+      data: {
+        teamId: membership.teamId,
+        userId: u.id,
+        type: "CADET_NOTE_ENTRY",
+        payload: { len: text.trim().length }
+      }
+    });
+  
+    return json(res, 200, { ok: true });
+  });
+  
+  server.post("/api/cadet/view", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const membership = await prisma.teamMember.findFirst({ where: { userId: u.id } });
+    if (!membership) return json(res, 400, { error: "No team" });
+  
+    const { kind, id } = req.body || {};
+    if (!kind || !id) return json(res, 400, { error: "Missing fields" });
+  
+    await prisma.auditEvent.create({
+      data: {
+        teamId: membership.teamId,
+        userId: u.id,
+        type: "CADET_VIEW",
+        payload: { kind, id }
+      }
+    });
+  
+    return json(res, 200, { ok: true });
+  });
+  
+
   server.get("/api/instructor/teams", async (req, res) => {
     const u = requireAuth(req);
     if (!u) return json(res, 401, { error: "Unauthorized" });
@@ -159,6 +252,11 @@ app.prepare().then(async () => {
         session: true,
         audits: { orderBy: { createdAt: "desc" }, take: 200 },
         submissions: { include: { user: true }, orderBy: { createdAt: "desc" } }
+        audits: {
+            include: { user: { select: { username: true } } },
+            orderBy: { createdAt: "desc" },
+            take: 50
+          },          
       }
     });
     if (!team) return json(res, 404, { error: "No team" });
@@ -218,11 +316,27 @@ app.prepare().then(async () => {
 
     const updated = await prisma.submission.update({
       where: { id: submissionId },
-      data: { score, instructorNotes: notes || "", gradedById: u.id, gradedAt: new Date() }
+      data: {
+        score: Math.max(0, Math.min(100, Math.floor(score))),
+        instructorNotes: (typeof notes === "string" ? notes : "") || "",
+        gradedById: u.id,
+        gradedAt: new Date()
+      }
+      
     });
 
-    await audit({ userId: u.id, teamId: updated.teamId, type: "INSTRUCTOR_GRADE", payload: { submissionId, score } });
-    return json(res, 200, { ok: true });
+    await audit({
+        userId: u.id,
+        teamId: updated.teamId,
+        type: "INSTRUCTOR_GRADE",
+        payload: {
+          submissionId,
+          targetUserId: updated.userId,
+          score: updated.score,
+          instructorNotes: updated.instructorNotes
+        }
+      });
+          return json(res, 200, { ok: true });
   });
   // List users (with team membership)
 server.get("/api/instructor/users", async (req, res) => {
@@ -344,6 +458,52 @@ server.get("/api/instructor/users", async (req, res) => {
     });
   });
 
+  // Get team notes
+server.get("/api/cadet/notes", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const membership = await prisma.teamMember.findFirst({
+      where: { userId: u.id }
+    });
+    if (!membership) return json(res, 400, { error: "No team" });
+  
+    const row = await prisma.teamNotes.findUnique({ where: { teamId: membership.teamId } });
+    return json(res, 200, { content: row?.content || "" });
+  });
+  
+  // Save team notes
+  server.post("/api/cadet/notes", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const membership = await prisma.teamMember.findFirst({
+      where: { userId: u.id }
+    });
+    if (!membership) return json(res, 400, { error: "No team" });
+  
+    const { content } = req.body || {};
+    if (typeof content !== "string") return json(res, 400, { error: "Invalid content" });
+  
+    await prisma.teamNotes.upsert({
+      where: { teamId: membership.teamId },
+      update: { content, updatedAt: new Date() },
+      create: { teamId: membership.teamId, content }
+    });
+  
+    await prisma.auditEvent.create({
+      data: {
+        teamId: membership.teamId,
+        userId: u.id,
+        type: "CADET_NOTES_SAVE",
+        payload: { len: content.length }
+      }
+    });
+  
+    return json(res, 200, { ok: true });
+  });
+  
+
   server.post("/api/cadet/start", async (req, res) => {
     const u = requireAuth(req);
     if (!u) return json(res, 401, { error: "Unauthorized" });
@@ -457,4 +617,19 @@ server.get("/api/instructor/users", async (req, res) => {
   httpServer.listen(PORT, () => {
     console.log(`Server listening on :${PORT}`);
   });
+  // Get current team notes
+server.get("/api/cadet/notes", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const membership = await prisma.teamMember.findFirst({
+      where: { userId: u.id },
+      include: { team: true }
+    });
+    if (!membership) return json(res, 400, { error: "No team" });
+  
+    const notesRow = await prisma.teamNote.findUnique({ where: { teamId: membership.team.id } });
+    return json(res, 200, { text: notesRow?.text || "" });
+  });
+  
 });

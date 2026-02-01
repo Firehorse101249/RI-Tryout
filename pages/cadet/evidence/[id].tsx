@@ -26,4 +26,13 @@ export default function EvidencePage() {
       </main>
     </EvidenceGuard>
   );
+  useEffect(() => {
+    if (!id) return;
+    fetch("/api/cadet/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "evidence", id })
+    }).catch(() => {});
+  }, [id]);
+  
 }

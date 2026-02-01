@@ -2,12 +2,46 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import io from "socket.io-client";
 import Link from "next/link";
 
+
+
+
 let socket: any = null;
 
 export default function Tryout() {
-  const [status, setStatus] = useState<any>(null);
-  const [notes, setNotes] = useState("");
-  const [msg, setMsg] = useState<string | null>(null);
+    const [status, setStatus] = useState<any>(null);
+    const [notes, setNotes] = useState("");
+    const [msg, setMsg] = useState<string | null>(null);
+  
+    const saveTimerRef = useRef<any>(null);
+  
+    const notesKey = status?.team?.id ? `ri_notes_${status.team.id}` : null;
+  
+    // Load notes from localStorage (fast)
+    useEffect(() => {
+      if (!notesKey) return;
+      const saved = localStorage.getItem(notesKey);
+      if (saved) setNotes(saved);
+    }, [notesKey]);
+  
+    // Persist notes to localStorage (survives navigation)
+    useEffect(() => {
+      if (!notesKey) return;
+      localStorage.setItem(notesKey, notes);
+    }, [notesKey, notes]);
+  
+    // Load notes from DB once the tryout is ACTIVE (source of truth)
+    useEffect(() => {
+      if (!status || status.state !== "ACTIVE") return;
+  
+      (async () => {
+        try {
+          const r = await fetch("/api/cadet/notes");
+          const data = await r.json();
+          if (r.ok) setNotes(data.content || "");
+        } catch {}
+      })();
+    }, [status?.state, status?.team?.id]);
+  
 
   const tickRef = useRef<any>(null);
 
@@ -41,7 +75,9 @@ export default function Tryout() {
 
     // Load current notes from status/team fetch via instructor endpoint is heavy; we’ll just pull via instructor team endpoint later.
     // For v1: fetch team notes through instructor team endpoint is restricted, so we keep notes in socket sync after first update.
-    socket.on("notes:sync", (payload: any) => setNotes(payload.content || ""));
+    socket.on("notes:sync", (payload: any) => {
+        if (typeof payload?.content === "string") setNotes(payload.content);
+      });      
 
     return () => {
       socket.off("notes:sync");
@@ -75,15 +111,20 @@ useEffect(() => {
     refresh();
   }
 
-  function updateNotes(v: string) {
-    setNotes(v);
-    if (socket && status?.team?.id && status?.state === "ACTIVE") {
-      socket.emit("notes:update", { teamId: status.team.id, userId: status.team?.memberships?.userId, content: v });
-      // NOTE: userId in payload is not validated in v1; server relies on DB ops + audits.
-      // We will harden this in v2 by attaching auth to socket and resolving userId server-side.
-      socket.emit("notes:update", { teamId: status.team.id, userId: status?.team?.members?.[0]?.id, content: v });
-    }
+  function updateNotes(next: string) {
+    setNotes(next);
+  
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      fetch("/api/cadet/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: next })
+      }).catch(() => {});
+    }, 500);
   }
+  
+
 
   if (!status) {
     return (

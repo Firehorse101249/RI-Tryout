@@ -17,6 +17,7 @@ export default function TeamDetail() {
     if (!r.ok) return setMsg(data.error || "Failed");
     setTeam(data.team);
     setMsg(null);
+    
   }
 
   useEffect(() => { load(); }, [teamId]);
@@ -77,7 +78,7 @@ export default function TeamDetail() {
         {team.audits.map((a: any) => (
           <li key={a.id} style={{ marginBottom: 6 }}>
             <b>{a.type}</b> — {new Date(a.createdAt).toLocaleString()}
-            {a.userId ? ` — user:${a.userId.slice(0, 6)}` : ""}
+            {a.user?.username ? ` — by ${a.user.username}` : (a.userId ? ` — by ${a.userId.slice(0, 6)}` : "")}
           </li>
         ))}
       </ol>

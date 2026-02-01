@@ -37,6 +37,10 @@ export default function Final() {
     const data = await r.json();
     if (!r.ok) return setMsg(data.error || "Submit failed");
     setMsg("Submitted. Instructor will grade.");
+setTimeout(() => {
+  window.location.href = "/cadet";
+}, 600);
+
   }
   
 

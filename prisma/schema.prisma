@@ -107,4 +107,18 @@ model Submission {
 
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  model NoteEntry {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  teamId String
+  userId String
+  text   String
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([teamId, createdAt])
+}
 }

@@ -26,6 +26,12 @@ export type Person = {
     tags: string[];
   };
   
+  export const RUBRIC = [
+    { q: 1, keyPoints: ["Primary broker likely Varo Cind", "Cite E6 invoices + E3 ledger", "Explain motive/role"] },
+    { q: 2, keyPoints: ["Two enablers: Hesk Ruun + Tomas Brill", "Cite E6 + E2/E4"] },
+    ...
+  ];
+  
   export const CASE = {
     id: "PILOT_GHOST_SIGNAL",
     title: "GHOST SIGNAL — Mid Rim Diversion Cell",

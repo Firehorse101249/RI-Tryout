@@ -24,4 +24,14 @@ export default function LocationPage() {
       </main>
     </EvidenceGuard>
   );
+
+  useEffect(() => {
+    if (!id) return;
+    fetch("/api/cadet/view", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: "locations", id })
+    }).catch(() => {});
+  }, [id]);
+  
 }
