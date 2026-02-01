@@ -5,6 +5,7 @@ const { Server } = require("socket.io");
 const http = require("http");
 
 const { prisma } = require("./lib/prisma");
+console.log("PRISMA CHECK:", !!prisma, typeof prisma?.user?.findUnique);
 console.log("PRISMA LOADED:", !!prisma, Object.keys(prisma || {}));
 
 const { requireAuth, issueAuthCookie, clearAuthCookie } = require("./lib/auth");
