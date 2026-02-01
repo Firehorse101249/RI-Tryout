@@ -104,12 +104,15 @@ useEffect(() => {
   }, [status?.session?.endsAt, now]);
 
   async function start() {
+    setMsg(null);
     const r = await fetch("/api/cadet/start", { method: "POST" });
     const data = await r.json();
     if (!r.ok) return setMsg(data.error || "Start failed");
-    setMsg(null);
-    refresh();
+  
+    // force refresh immediately
+    await refresh();
   }
+  
 
   function updateNotes(next: string) {
     setNotes(next);
@@ -139,6 +142,18 @@ useEffect(() => {
   return (
     <main style={{ padding: 24, fontFamily: "system-ui" }}>
       <h1>Tryout: {status.team.name}</h1>
+      <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8 }}>
+  {JSON.stringify(
+    {
+      state: status?.state,
+      teamId: status?.team?.id,
+      session: status?.session,
+      endsAt: status?.session?.endsAt
+    },
+    null,
+    2
+  )}
+</pre>
 
       {status.state !== "ACTIVE" ? (
         

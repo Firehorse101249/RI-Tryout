@@ -592,9 +592,9 @@ server.get("/api/cadet/notes", async (req, res) => {
     const session = await prisma.teamSession.findUnique({ where: { teamId } });
 
     if (session && session.status === "ACTIVE") {
-      await audit({ teamId, userId: u.id, type: "TRYOUT_START_JOIN_ACTIVE" });
-      return json(res, 200, { ok: true, session });
-    }
+        await audit({ teamId, userId: u.id, type: "TRYOUT_START_JOIN_ACTIVE" });
+        return json(res, 200, { ok: true, session });
+      }      
 
     // start (or restart if NOT_STARTED)
     const now = new Date();
