@@ -584,89 +584,79 @@ server.get("/api/cadet/notes", async (req, res) => {
   
 
   server.post("/api/cadet/start", async (req, res) => {
-    try {
-      console.log("HIT /api/cadet/start");
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+    if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
   
-      const u = requireAuth(req);
-      if (!u) return json(res, 401, { error: "Unauthorized" });
-      if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
+    const user = await prisma.user.findUnique({ where: { id: u.id } });
+    if (!user) return json(res, 401, { error: "Unauthorized" });
+    if (user.lockedReason) return json(res, 403, { error: "Locked", lockedReason: user.lockedReason });
   
-      const user = await prisma.user.findUnique({ where: { id: u.id } });
-      if (!user) return json(res, 401, { error: "Unauthorized" });
-      if (user.lockedReason) return json(res, 403, { error: "Locked", lockedReason: user.lockedReason });
+    const member = await prisma.teamMember.findFirst({ where: { userId: u.id } });
+    if (!member) return json(res, 400, { error: "No team" });
   
-      const member = await prisma.teamMember.findFirst({ where: { userId: u.id } });
-      if (!member) return json(res, 400, { error: "No team" });
+    const teamId = member.teamId;
+    const existing = await prisma.teamSession.findUnique({ where: { teamId } });
   
-      const teamId = member.teamId;
+    // If already active, just rejoin
+    if (existing && existing.status === "ACTIVE") {
+      await audit({ teamId, userId: u.id, type: "TRYOUT_START_JOIN_ACTIVE" });
+      return json(res, 200, { ok: true, session: existing });
+    }
   
-      const session = await prisma.teamSession.findUnique({ where: { teamId } });
+    const now = new Date();
+    const endsAt = new Date(now.getTime() + 4 * 60 * 60 * 1000);
   
-      // If already active, just return it
-      if (session && session.status === "ACTIVE") {
-        await audit({ teamId, userId: u.id, type: "TRYOUT_START_JOIN_ACTIVE" });
-        return json(res, 200, { ok: true, session });
-      }
+    // Start / restart session
+    const newSession = await prisma.teamSession.upsert({
+      where: { teamId },
+      update: { status: "ACTIVE", startedAt: now, endsAt },
+      create: { teamId, status: "ACTIVE", startedAt: now, endsAt, attemptNumber: 1 }
+    });
   
-      // Start tryout
-      const now = new Date();
-      const endsAt = new Date(now.getTime() + 4 * 60 * 60 * 1000);
+    // Assign buckets ONCE per attempt
+    const members = await prisma.teamMember.findMany({
+      where: { teamId },
+      orderBy: { userId: "asc" }
+    });
   
-      const newSession = await prisma.teamSession.upsert({
-        where: { teamId },
-        update: { status: "ACTIVE", startedAt: now, endsAt },
-        create: { teamId, status: "ACTIVE", startedAt: now, endsAt, attemptNumber: 1 }
-      });
+    const bucketCount = Math.max(1, members.length);
+    const attemptNumber = newSession.attemptNumber;
   
-      const attemptNumber = newSession.attemptNumber;
-  
-      // -----------------------------
-      // ACCESS GRANT ASSIGNMENT (intel split)
-      // -----------------------------
-      const members = await prisma.teamMember.findMany({
-        where: { teamId },
-        orderBy: { userId: "asc" } // stable order
-      });
-  
-      const bucketCount = Math.max(1, members.length);
-  
-      for (let i = 0; i < members.length; i++) {
-        await prisma.accessGrant.upsert({
-          where: {
-            teamId_attemptNumber_userId: {
-              teamId,
-              attemptNumber,
-              userId: members[i].userId
-            }
-          },
-          update: {
-            bucketIndex: i % bucketCount,
-            bucketCount
-          },
-          create: {
+    for (let i = 0; i < members.length; i++) {
+      await prisma.accessGrant.upsert({
+        where: {
+          teamId_attemptNumber_userId: {
             teamId,
             attemptNumber,
-            userId: members[i].userId,
-            bucketIndex: i % bucketCount,
-            bucketCount
+            userId: members[i].userId
           }
-        });
-      }
-  
-      await audit({
-        teamId,
-        userId: u.id,
-        type: "ACCESS_BUCKETS_ASSIGNED",
-        payload: { attemptNumber, bucketCount, members: members.length }
+        },
+        update: {
+          bucketIndex: i % bucketCount,
+          bucketCount
+        },
+        create: {
+          teamId,
+          attemptNumber,
+          userId: members[i].userId,
+          bucketIndex: i % bucketCount,
+          bucketCount
+        }
       });
-  
-      await audit({ teamId, userId: u.id, type: "TRYOUT_STARTED", payload: { endsAt: newSession.endsAt } });
-      return json(res, 200, { ok: true, session: newSession });
-    } catch (e) {
-      console.error("CADET_START_FAIL:", e);
-      return json(res, 500, { error: "CADET_START_FAIL", detail: String(e?.message || e) });
     }
+  
+    await audit({
+      teamId,
+      userId: u.id,
+      type: "ACCESS_BUCKETS_ASSIGNED",
+      payload: { attemptNumber, bucketCount, members: members.length }
+    });
+  
+    await audit({ teamId, userId: u.id, type: "TRYOUT_STARTED", payload: { endsAt: newSession.endsAt } });
+    return json(res, 200, { ok: true, session: newSession });
   });
+  
   
   
   
