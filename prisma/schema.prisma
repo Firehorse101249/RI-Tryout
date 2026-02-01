@@ -1,0 +1,110 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CADET
+  INSTRUCTOR
+  ADMIN
+}
+
+enum SessionStatus {
+  NOT_STARTED
+  ACTIVE
+  EXPIRED
+}
+
+model User {
+  id           String  @id @default(cuid())
+  username     String  @unique
+  passwordHash String
+  role         Role    @default(CADET)
+  lockedReason String?
+
+  createdAt DateTime @default(now())
+
+  memberships TeamMember[]
+  audits      AuditEvent[]
+  submissions Submission[]
+}
+
+model Team {
+  id        String @id @default(cuid())
+  name      String
+  joinCode  String @unique
+  caseId    String
+
+  createdAt DateTime @default(now())
+
+  members     TeamMember[]
+  notes       TeamNotes?
+  session     TeamSession?
+  audits      AuditEvent[]
+  submissions Submission[]
+}
+
+model TeamMember {
+  teamId String
+  userId String
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([teamId, userId])
+  @@unique([teamId, userId], name: "teamId_userId")
+}
+
+model TeamNotes {
+  teamId    String  @id
+  content   String  @default("")
+  updatedAt DateTime @default(now())
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model TeamSession {
+  teamId       String @id
+  status       SessionStatus @default(NOT_STARTED)
+  attemptNumber Int @default(1)
+  startedAt    DateTime?
+  endsAt       DateTime?
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+}
+
+model AuditEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  type    String
+  payload Json?
+
+  teamId String?
+  userId String?
+
+  team Team? @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Submission {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+
+  teamId       String
+  userId       String
+  attemptNumber Int
+  answersJson  Json
+
+  score         Int?
+  instructorNotes String?
+  gradedAt      DateTime?
+  gradedById    String?
+
+  team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
