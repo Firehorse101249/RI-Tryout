@@ -132,10 +132,6 @@ app.prepare().then(async () => {
     const effectiveBucketCount = Math.max(1, Math.min(grant.bucketCount, source.length || 1));
 const effectiveBucketIndex = grant.bucketIndex % effectiveBucketCount;
 
-const items = source.filter(
-  (_, idx) => idx % effectiveBucketCount === effectiveBucketIndex
-);
-
   
     await audit({
       teamId: member.teamId,
@@ -820,5 +816,3 @@ server.get("/api/cadet/notes", async (req, res) => {
   httpServer.listen(PORT, () => {
     console.log(`Server listening on :${PORT}`);
   });
-  
-});
