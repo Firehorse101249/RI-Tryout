@@ -1,5 +1,9 @@
 import Link from "next/link";
-import { CASE } from "../../lib/caseData";
+import { useRouter } from "next/router";
+import { useEffect } from "react";
+import { CASE } from "../../../lib/caseData";
+import EvidenceGuard from "../../../ui/EvidenceGuard";
+
 
 export default function EvidenceList() {
   return (
