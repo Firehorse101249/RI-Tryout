@@ -129,6 +129,13 @@ app.prepare().then(async () => {
     const items = source.filter(
       (_, idx) => idx % grant.bucketCount === grant.bucketIndex
     );
+    const effectiveBucketCount = Math.max(1, Math.min(grant.bucketCount, source.length || 1));
+const effectiveBucketIndex = grant.bucketIndex % effectiveBucketCount;
+
+const items = source.filter(
+  (_, idx) => idx % effectiveBucketCount === effectiveBucketIndex
+);
+
   
     await audit({
       teamId: member.teamId,
@@ -138,9 +145,11 @@ app.prepare().then(async () => {
     });
   
     return json(res, 200, {
-      bucketIndex: grant.bucketIndex,
-      bucketCount: grant.bucketCount,
-      items
+        bucketIndex: effectiveBucketIndex,
+        bucketCount: effectiveBucketCount,
+        items
+      });
+      
     });
   });
   
@@ -655,7 +664,37 @@ server.get("/api/cadet/notes", async (req, res) => {
     // If already active, just rejoin and ensure grants exist
     const existing = await prisma.teamSession.findUnique({ where: { teamId } });
     if (existing && existing.status === "ACTIVE") {
-      const g = await ensureAccessGrants(teamId, existing.attemptNumber);
+        async function ensureAccessGrants(teamId, attemptNumber) {
+            const members = await prisma.teamMember.findMany({
+              where: { teamId },
+              orderBy: { userId: "asc" }
+            });
+          
+            const bucketCount = Math.max(1, members.length);
+          
+            for (let i = 0; i < members.length; i++) {
+              await prisma.accessGrant.upsert({
+                where: {
+                  teamId_attemptNumber_userId: {
+                    teamId,
+                    attemptNumber,
+                    userId: members[i].userId
+                  }
+                },
+                update: { bucketIndex: i % bucketCount, bucketCount },
+                create: {
+                  teamId,
+                  attemptNumber,
+                  userId: members[i].userId,
+                  bucketIndex: i % bucketCount,
+                  bucketCount
+                }
+              });
+            }
+          
+            return { bucketCount, members: members.length };
+          }
+          
   
       await audit({
         teamId,

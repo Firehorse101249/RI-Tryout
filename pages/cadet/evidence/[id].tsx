@@ -5,16 +5,11 @@ import { CASE } from "../../../lib/caseData";
 import EvidenceGuard from "../../../ui/EvidenceGuard";
 
 type Slice = {
-  ok: true;
-  attemptNumber: number;
-  bucketIndex: number;
-  bucketCount: number;
-  allow: {
-    peopleIds: string[];
-    locationIds: string[];
-    evidenceIds: string[];
+    bucketIndex: number;
+    bucketCount: number;
+    items: { id: string }[];
   };
-};
+  
 
 export default function EvidencePage() {
   const router = useRouter();
@@ -32,7 +27,7 @@ export default function EvidencePage() {
     if (!id) return;
     (async () => {
       setMsg(null);
-      const r = await fetch("/api/cadet/case-slice");
+      const r = await fetch("/api/cadet/case-slice?kind=evidence");
       const data = await r.json();
       if (!r.ok) return setMsg(data.error || "Failed to load access slice");
       setSlice(data);
@@ -40,9 +35,10 @@ export default function EvidencePage() {
   }, [id]);
 
   const allowed = useMemo(() => {
-    if (!slice?.allow?.evidenceIds || !id) return false;
-    return slice.allow.evidenceIds.includes(id);
+    if (!slice?.items?.length || !id) return false;
+    return slice.items.some((x) => x.id === id);
   }, [slice, id]);
+  
 
   // Log view ONLY if allowed
   useEffect(() => {
