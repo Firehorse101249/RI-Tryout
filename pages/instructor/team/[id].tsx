@@ -1,7 +1,7 @@
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { CASE } from "../../../lib/caseData";
+import { CASE, RUBRIC } from "../../../lib/caseData";
 
 
 export default function TeamDetail() {
@@ -73,6 +73,16 @@ export default function TeamDetail() {
         ))}
       </ul>
 
+      <h2 style={{ marginTop: 16 }}>Team Notes (Saved)</h2>
+{team.notes?.content ? (
+  <div style={{ whiteSpace: "pre-wrap", border: "1px solid #ddd", padding: 12, borderRadius: 10 }}>
+    {team.notes.content}
+  </div>
+) : (
+  <p style={{ color: "#666" }}>(No notes saved yet)</p>
+)}
+
+
       <h2 style={{ marginTop: 16 }}>Recent Audit Log</h2>
       <ol>
         {team.audits.map((a: any) => (
@@ -96,14 +106,33 @@ export default function TeamDetail() {
                 <summary>View answers</summary>
                 {Array.isArray(s.answersJson?.responses) ? (
   <div style={{ paddingTop: 8 }}>
-    {CASE.finalQuestions.map((q, i) => (
-      <div key={q} style={{ marginBottom: 12 }}>
-        <div><b>{i + 1}) {q}</b></div>
-        <div style={{ whiteSpace: "pre-wrap", border: "1px solid #ddd", padding: 10, borderRadius: 8 }}>
-          {String(s.answersJson.responses[i] || "").trim() || <i>(no answer)</i>}
-        </div>
+    {CASE.finalQuestions.map((q, i) => {
+  const rubric = (RUBRIC as any[]).find((r) => r.q === i + 1);
+
+  return (
+    <div key={q} style={{ marginBottom: 12 }}>
+      <div><b>{i + 1}) {q}</b></div>
+
+      <div style={{ whiteSpace: "pre-wrap", border: "1px solid #ddd", padding: 10, borderRadius: 8 }}>
+        {String(s.answersJson.responses[i] || "").trim() || <i>(no answer)</i>}
       </div>
-    ))}
+
+      {rubric?.keyPoints?.length ? (
+        <details style={{ marginTop: 8 }}>
+          <summary>Rubric / expected points</summary>
+          <ul>
+            {rubric.keyPoints.map((kp: string) => (
+              <li key={kp}>{kp}</li>
+            ))}
+          </ul>
+        </details>
+      ) : (
+        <p style={{ marginTop: 8, color: "#666" }}>(No rubric added for this question yet)</p>
+      )}
+    </div>
+  );
+})}
+
   </div>
 ) : (
   <pre style={{ whiteSpace: "pre-wrap" }}>{JSON.stringify(s.answersJson, null, 2)}</pre>

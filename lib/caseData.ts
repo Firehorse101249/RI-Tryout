@@ -27,9 +27,74 @@ export type Person = {
   };
   
   export const RUBRIC = [
-    { q: 1, keyPoints: ["Primary broker likely Varo Cind", "Cite E6 invoices + E3 ledger", "Explain motive/role"] },
-    { q: 2, keyPoints: ["Two enablers: Hesk Ruun + Tomas Brill", "Cite E6 + E2/E4"] },
-  ];
+    {
+      q: 1,
+      keyPoints: [
+        "Identifies Varo Cind as the primary broker/facilitator",
+        "Cites invoice irregularities (E6) and financial routing (E3)",
+        "Explains the broker role: procurement access, client separation, profit motive"
+      ]
+    },
+    {
+      q: 2,
+      keyPoints: [
+        "Names at least two legitimate-layer enablers (ex: Hesk Ruun, Tomas Brill)",
+        "Cites customs overrides or approval clustering (E6, E2, E4)",
+        "Explains how each enabler reduces friction or risk"
+      ]
+    },
+    {
+      q: 3,
+      keyPoints: [
+        "Identifies Juno Hal as the most likely controller of ghost signal routing",
+        "Cites maintenance-channel burst correlation (E1) and access role",
+        "Explains capability: relay access, log masking, burst timing"
+      ]
+    },
+    {
+      q: 4,
+      keyPoints: [
+        "Provides a coherent contact chain of at least 6 individuals",
+        "Includes a logical order (signal → coordination → logistics → approvals → transport)",
+        "Uses evidence references to justify links (E1–E6)",
+        "Notes use of cutouts or compartmentalization (ex: Mara Tey, Orrin Kale)"
+      ]
+    },
+    {
+      q: 5,
+      keyPoints: [
+        "States a plausible objective (diversion and covert movement of medical isotopes)",
+        "Connects isotopes to value, scarcity, or controlled-use implications",
+        "Links objective to both logistics evidence (E2, E6) and signal evidence (E1, E5)"
+      ]
+    },
+    {
+      q: 6,
+      keyPoints: [
+        "Identifies a likely next transfer location (ex: Port Lysa Dock Ring or Scrapline Corridor)",
+        "Provides a reasonable time window tied to ghost burst cadence (~47 min, E1)",
+        "Explains why the location fits operational patterns (low oversight, routing flexibility)"
+      ]
+    },
+    {
+      q: 7,
+      keyPoints: [
+        "Identifies a high OPSEC risk item (ex: cantina ledger E3 or relay access E1)",
+        "Explains how that evidence could compromise the investigation",
+        "Proposes a mitigation strategy (parallel construction, access control, source protection)"
+      ]
+    },
+    {
+      q: 8,
+      keyPoints: [
+        "Outlines a phased interdiction plan (surveillance → attribution → action)",
+        "Prioritizes OPSEC and evidence preservation",
+        "Considers flipping assets vs. arrests (ex: Dray Meln or Orrin Kale)",
+        "Addresses contingency if the network detects exposure"
+      ]
+    }
+  ] as const;
+  
   
   export const CASE = {
     id: "PILOT_GHOST_SIGNAL",
