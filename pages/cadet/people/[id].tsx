@@ -36,7 +36,7 @@ export default function PersonPage() {
         <p>
           <b>Role:</b> {p.role}
         </p>
-        <p style={{ color: "#666" }}>{p.summary}</p>
+        <p style={{ color: "#666" }}>{p.details.slice(0, 140)}…</p>
 
         <h2>Profile</h2>
         <p style={{ lineHeight: 1.6 }}>{p.details}</p>
