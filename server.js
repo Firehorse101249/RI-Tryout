@@ -147,7 +147,7 @@ const effectiveBucketIndex = grant.bucketIndex % effectiveBucketCount;
       });
       
     });
-  });
+
   
 
   server.get("/api/cadet/dashboard", async (req, res) => {
@@ -815,4 +815,5 @@ server.get("/api/cadet/notes", async (req, res) => {
 
   httpServer.listen(PORT, () => {
     console.log(`Server listening on :${PORT}`);
-  });
+});
+});
