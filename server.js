@@ -24,6 +24,66 @@ app.prepare().then(async () => {
   const server = express();
   server.use(express.json({ limit: "1mb" }));
 
+  server.get("/api/cadet/case-slice", async (req, res) => {
+    const u = requireAuth(req);
+    if (!u) return json(res, 401, { error: "Unauthorized" });
+  
+    const member = await prisma.teamMember.findFirst({
+      where: { userId: u.id },
+      include: { team: { include: { session: true } } }
+    });
+    if (!member) return json(res, 400, { error: "No team" });
+  
+    const session = member.team.session;
+    if (!session || session.status !== "ACTIVE") {
+      return json(res, 403, { error: "Tryout not active" });
+    }
+  
+    const grant = await prisma.accessGrant.findUnique({
+      where: {
+        teamId_attemptNumber_userId: {
+          teamId: member.teamId,
+          attemptNumber: session.attemptNumber,
+          userId: u.id
+        }
+      }
+    });
+  
+    if (!grant) return json(res, 403, { error: "No access grant" });
+  
+    const { kind } = req.query;
+    if (!["evidence", "people", "locations"].includes(kind)) {
+      return json(res, 400, { error: "Invalid kind" });
+    }
+  
+    const { CASE } = require("./lib/caseData");
+  
+    const source =
+      kind === "evidence"
+        ? CASE.evidence
+        : kind === "people"
+        ? CASE.people
+        : CASE.locations;
+  
+    const items = source.filter(
+      (_, idx) => idx % grant.bucketCount === grant.bucketIndex
+    );
+  
+    await audit({
+      teamId: member.teamId,
+      userId: u.id,
+      type: "CADET_VIEW_SLICE",
+      payload: { kind, count: items.length }
+    });
+  
+    return json(res, 200, {
+      bucketIndex: grant.bucketIndex,
+      bucketCount: grant.bucketCount,
+      items
+    });
+  });
+  
+
   server.get("/api/cadet/dashboard", async (req, res) => {
     const u = requireAuth(req);
     if (!u) return json(res, 401, { error: "Unauthorized" });
@@ -540,12 +600,57 @@ server.get("/api/cadet/notes", async (req, res) => {
     const now = new Date();
     const endsAt = new Date(now.getTime() + 4 * 60 * 60 * 1000);
 
-    const attemptNumber = session?.attemptNumber ?? 1;
+    const attemptNumber = newSession.attemptNumber;
     const newSession = await prisma.teamSession.upsert({
       where: { teamId },
       update: { status: "ACTIVE", startedAt: now, endsAt },
       create: { teamId, status: "ACTIVE", startedAt: now, endsAt, attemptNumber: 1 }
     });
+
+      // -----------------------------
+  // ACCESS GRANT ASSIGNMENT (intel split)
+  // -----------------------------
+  const members = await prisma.teamMember.findMany({
+    where: { teamId },
+    orderBy: { userId: "asc" } // stable order so it's fair
+  });
+
+  const bucketCount = Math.max(1, members.length);
+
+  for (let i = 0; i < members.length; i++) {
+    await prisma.accessGrant.upsert({
+      where: {
+        teamId_attemptNumber_userId: {
+          teamId,
+          attemptNumber,
+          userId: members[i].userId
+        }
+      },
+      update: {
+        bucketIndex: i % bucketCount,
+        bucketCount
+      },
+      create: {
+        teamId,
+        attemptNumber,
+        userId: members[i].userId,
+        bucketIndex: i % bucketCount,
+        bucketCount
+      }
+    });
+  }
+
+  await audit({
+    teamId,
+    userId: u.id,
+    type: "ACCESS_BUCKETS_ASSIGNED",
+    payload: {
+      attemptNumber,
+      bucketCount,
+      members: members.length
+    }
+  });
+
 
     await audit({ teamId, userId: u.id, type: "TRYOUT_STARTED", payload: { endsAt: newSession.endsAt } });
     return json(res, 200, { ok: true, session: newSession });
