@@ -2,52 +2,19 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import io from "socket.io-client";
 import Link from "next/link";
 
-
-
-
 let socket: any = null;
 
 export default function Tryout() {
-    const [status, setStatus] = useState<any>(null);
-    const [notes, setNotes] = useState("");
-    const [msg, setMsg] = useState<string | null>(null);
-  
-    const saveTimerRef = useRef<any>(null);
-  
-    const notesKey = status?.team?.id ? `ri_notes_${status.team.id}` : null;
-  
-    // Load notes from localStorage (fast)
-    useEffect(() => {
-      if (!notesKey) return;
-      const saved = localStorage.getItem(notesKey);
-      if (saved) setNotes(saved);
-    }, [notesKey]);
-  
-    // Persist notes to localStorage (survives navigation)
-    useEffect(() => {
-      if (!notesKey) return;
-      localStorage.setItem(notesKey, notes);
-    }, [notesKey, notes]);
-  
-    // Load notes from DB once the tryout is ACTIVE (source of truth)
-    useEffect(() => {
-      if (!status || status.state !== "ACTIVE") return;
-  
-      (async () => {
-        try {
-          const r = await fetch("/api/cadet/notes");
-          const data = await r.json();
-          if (r.ok) setNotes(data.content || "");
-        } catch {}
-      })();
-    }, [status?.state, status?.team?.id]);
-  
+  const [status, setStatus] = useState<any>(null);
+  const [notes, setNotes] = useState("");
+  const [msg, setMsg] = useState<string | null>(null);
 
   const tickRef = useRef<any>(null);
+  const saveRef = useRef<any>(null);
 
   async function refresh() {
     const r = await fetch("/api/cadet/status");
-    const data = await r.json();
+    const data = await r.json().catch(() => ({}));
     if (!r.ok) {
       setMsg(data.error || "Blocked");
       setStatus(null);
@@ -63,34 +30,39 @@ export default function Tryout() {
     return () => clearInterval(tickRef.current);
   }, []);
 
+  // Load notes from server once tryout is ACTIVE
+  useEffect(() => {
+    if (!status?.team?.id) return;
+    if (status.state !== "ACTIVE") return;
+
+    (async () => {
+      try {
+        const r = await fetch("/api/cadet/notes");
+        const data = await r.json();
+        if (r.ok) setNotes(data.content || "");
+      } catch {}
+    })();
+  }, [status?.team?.id, status?.state]);
+
+  // socket sync
   useEffect(() => {
     if (!status?.team?.id) return;
 
-    // init socket once
-    if (!socket) {
-      socket = io({ path: "/socket.io" });
-    }
+    if (!socket) socket = io({ path: "/socket.io" });
 
     socket.emit("team:join", { teamId: status.team.id });
-
-    // Load current notes from status/team fetch via instructor endpoint is heavy; we’ll just pull via instructor team endpoint later.
-    // For v1: fetch team notes through instructor team endpoint is restricted, so we keep notes in socket sync after first update.
-    socket.on("notes:sync", (payload: any) => {
-        if (typeof payload?.content === "string") setNotes(payload.content);
-      });      
+    socket.on("notes:sync", (payload: any) => setNotes(payload?.content || ""));
 
     return () => {
       socket.off("notes:sync");
     };
   }, [status?.team?.id]);
-  
+
   const [now, setNow] = useState(Date.now());
-
-useEffect(() => {
-  const id = setInterval(() => setNow(Date.now()), 1000);
-  return () => clearInterval(id);
-}, []);
-
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   const remaining = useMemo(() => {
     const endsAt = status?.session?.endsAt ? new Date(status.session.endsAt).getTime() : null;
@@ -103,369 +75,45 @@ useEffect(() => {
     return `${hh}:${mm}:${ss}`;
   }, [status?.session?.endsAt, now]);
 
-  (self.webpackChunk_N_E = self.webpackChunk_N_E || []).push([[846], {
-    1259: function(e, t, n) {
-        (window.__NEXT_P = window.__NEXT_P || []).push(["/cadet/tryout", function() {
-            return n(515)
-        }
-        ])
-    },
-    515: function(e, t, n) {
-        "use strict";
-        n.r(t),
-        n.d(t, {
-            default: function() {
-                return c
-            }
-        });
-        var i = n(5893)
-          , l = n(7294)
-          , s = n(7642)
-          , o = n(1664)
-          , a = n.n(o);
-        let r = null;
-        function c() {
-            var e, t, n, o, c, d;
-            let[u,h] = (0,
-            l.useState)(null)
-              , [f,m] = (0,
-            l.useState)("")
-              , [p,v] = (0,
-            l.useState)(null)
-              , j = (0,
-            l.useRef)(null)
-              , x = (null == u ? void 0 : null === (e = u.team) || void 0 === e ? void 0 : e.id) ? "ri_notes_".concat(u.team.id) : null;
-            (0,
-            l.useEffect)( () => {
-                if (!x)
-                    return;
-                let e = localStorage.getItem(x);
-                e && m(e)
-            }
-            , [x]),
-            (0,
-            l.useEffect)( () => {
-                x && localStorage.setItem(x, f)
-            }
-            , [x, f]),
-            (0,
-            l.useEffect)( () => {
-                u && "ACTIVE" === u.state && (async () => {
-                    try {
-                        let e = await fetch("/api/cadet/notes")
-                          , t = await e.json();
-                        e.ok && m(t.content || "")
-                    } catch (e) {}
-                }
-                )()
-            }
-            , [null == u ? void 0 : u.state, null == u ? void 0 : null === (t = u.team) || void 0 === t ? void 0 : t.id]);
-            let y = (0,
-            l.useRef)(null);
-            async function g() {
-                let e = await fetch("/api/cadet/status")
-                  , t = await e.json();
-                if (!e.ok) {
-                    v(t.error || "Blocked"),
-                    h(null);
-                    return
-                }
-                h(t),
-                v(null)
-            }
-            (0,
-            l.useEffect)( () => (g(),
-            y.current = setInterval(g, 5e3),
-            () => clearInterval(y.current)), []),
-            (0,
-            l.useEffect)( () => {
-                var e;
-                if (null == u ? void 0 : null === (e = u.team) || void 0 === e ? void 0 : e.id)
-                    return r || (r = (0,
-                    s.ZP)({
-                        path: "/socket.io"
-                    })),
-                    r.emit("team:join", {
-                        teamId: u.team.id
-                    }),
-                    r.on("notes:sync", e => {
-                        "string" == typeof (null == e ? void 0 : e.content) && m(e.content)
-                    }
-                    ),
-                    () => {
-                        r.off("notes:sync")
-                    }
-            }
-            , [null == u ? void 0 : null === (n = u.team) || void 0 === n ? void 0 : n.id]);
-            let[S,w] = (0,
-            l.useState)(Date.now());
-            (0,
-            l.useEffect)( () => {
-                let e = setInterval( () => w(Date.now()), 1e3);
-                return () => clearInterval(e)
-            }
-            , []);
-            let T = (0,
-            l.useMemo)( () => {
-                var e;
-                let t = (null == u ? void 0 : null === (e = u.session) || void 0 === e ? void 0 : e.endsAt) ? new Date(u.session.endsAt).getTime() : null;
-                if (!t)
-                    return null;
-                let n = Math.floor(Math.max(0, t - S) / 1e3)
-                  , i = String(Math.floor(n / 3600)).padStart(2, "0")
-                  , l = String(Math.floor(n % 3600 / 60)).padStart(2, "0")
-                  , s = String(n % 60).padStart(2, "0");
-                return "".concat(i, ":").concat(l, ":").concat(s)
-            }
-            , [null == u ? void 0 : null === (o = u.session) || void 0 === o ? void 0 : o.endsAt, S]);
-            async function k() {
-                v(null);
-                let e = await fetch("/api/cadet/start", {
-                    method: "POST"
-                })
-                  , t = await e.json();
-                if (!e.ok)
-                    return v(t.error || "Start failed");
-                await g()
-            }
-            return u ? (0,
-            i.jsxs)("main", {
-                style: {
-                    padding: 24,
-                    fontFamily: "system-ui"
-                },
-                children: [(0,
-                i.jsxs)("h1", {
-                    children: ["Tryout: ", u.team.name]
-                }), (0,
-                i.jsx)("pre", {
-                    style: {
-                        background: "#f6f6f6",
-                        padding: 12,
-                        borderRadius: 8
-                    },
-                    children: JSON.stringify({
-                        state: null == u ? void 0 : u.state,
-                        teamId: null == u ? void 0 : null === (c = u.team) || void 0 === c ? void 0 : c.id,
-                        session: null == u ? void 0 : u.session,
-                        endsAt: null == u ? void 0 : null === (d = u.session) || void 0 === d ? void 0 : d.endsAt
-                    }, null, 2)
-                }), "ACTIVE" !== u.state ? (0,
-                i.jsxs)(i.Fragment, {
-                    children: [(0,
-                    i.jsxs)("p", {
-                        children: ["Status: ", (0,
-                        i.jsx)("b", {
-                            children: u.state
-                        })]
-                    }), (0,
-                    i.jsx)("button", {
-                        onClick: k,
-                        children: "Start 4-hour tryout"
-                    }), (0,
-                    i.jsx)("p", {
-                        style: {
-                            marginTop: 8,
-                            color: "#555"
-                        },
-                        children: "Starting activates the timer for the whole team. If it expires, you’ll be locked until an instructor unlocks attempt #2."
-                    })]
-                }) : (0,
-                i.jsxs)(i.Fragment, {
-                    children: [(0,
-                    i.jsxs)("p", {
-                        children: ["Time remaining: ", (0,
-                        i.jsx)("b", {
-                            style: {
-                                fontSize: 18
-                            },
-                            children: T
-                        })]
-                    }), (0,
-                    i.jsxs)("p", {
-                        style: {
-                            marginTop: 8
-                        },
-                        children: [(0,
-                        i.jsx)("b", {
-                            children: "Case Files:"
-                        }), " ", (0,
-                        i.jsx)(a(), {
-                            href: "/cadet/case",
-                            children: "Overview"
-                        }), " \xb7", " ", (0,
-                        i.jsx)(a(), {
-                            href: "/cadet/people",
-                            children: "People"
-                        }), " \xb7", " ", (0,
-                        i.jsx)(a(), {
-                            href: "/cadet/locations",
-                            children: "Locations"
-                        }), " \xb7", " ", (0,
-                        i.jsx)(a(), {
-                            href: "/cadet/evidence",
-                            children: "Evidence"
-                        })]
-                    }), (0,
-                    i.jsxs)("section", {
-                        style: {
-                            marginTop: 16
-                        },
-                        children: [(0,
-                        i.jsx)("h2", {
-                            children: "Mission Brief (Pilot)"
-                        }), (0,
-                        i.jsxs)("p", {
-                            children: [(0,
-                            i.jsx)("b", {
-                                children: "Case:"
-                            }), " Ghost Signal in the Mid Rim"]
-                        }), (0,
-                        i.jsxs)("ul", {
-                            children: [(0,
-                            i.jsx)("li", {
-                                children: "Identify the compromised supply officer"
-                            }), (0,
-                            i.jsx)("li", {
-                                children: "Map the contact chain (aliases)"
-                            }), (0,
-                            i.jsx)("li", {
-                                children: "Determine objective + recommended op plan"
-                            }), (0,
-                            i.jsx)("li", {
-                                children: "Maintain OPSEC: don’t copy/share outside this console"
-                            })]
-                        }), (0,
-                        i.jsx)("p", {
-                            style: {
-                                color: "#666"
-                            },
-                            children: "In v1, evidence is embedded as narrative. In v2 we’ll add gated artifacts + tasks + red herrings."
-                        })]
-                    }), (0,
-                    i.jsxs)("section", {
-                        style: {
-                            marginTop: 16
-                        },
-                        children: [(0,
-                        i.jsx)("h2", {
-                            children: "Shared Team Notes (Realtime)"
-                        }), (0,
-                        i.jsx)("textarea", {
-                            value: f,
-                            onChange: e => {
-                                var t;
-                                m(t = e.target.value),
-                                j.current && clearTimeout(j.current),
-                                j.current = setTimeout( () => {
-                                    fetch("/api/cadet/notes", {
-                                        method: "POST",
-                                        headers: {
-                                            "Content-Type": "application/json"
-                                        },
-                                        body: JSON.stringify({
-                                            content: t
-                                        })
-                                    }).catch( () => {}
-                                    )
-                                }
-                                , 500)
-                            }
-                            ,
-                            rows: 16,
-                            style: {
-                                width: "100%",
-                                fontFamily: "ui-monospace, Menlo, monospace"
-                            }
-                        }), (0,
-                        i.jsx)("p", {
-                            style: {
-                                color: "#666"
-                            },
-                            children: "Edits are logged in the audit trail."
-                        })]
-                    }), (0,
-                    i.jsx)("section", {
-                        style: {
-                            marginTop: 16
-                        },
-                        children: (0,
-                        i.jsx)(a(), {
-                            href: "/cadet/final",
-                            children: "Go to Final Questions"
-                        })
-                    })]
-                }), p && (0,
-                i.jsx)("p", {
-                    style: {
-                        color: "crimson"
-                    },
-                    children: p
-                }), (0,
-                i.jsxs)("p", {
-                    style: {
-                        marginTop: 16
-                    },
-                    children: [(0,
-                    i.jsx)(a(), {
-                        href: "/cadet",
-                        children: "Back"
-                    }), " \xb7 ", (0,
-                    i.jsx)(a(), {
-                        href: "/logout",
-                        children: "Logout"
-                    })]
-                })]
-            }) : (0,
-            i.jsxs)("main", {
-                style: {
-                    padding: 24,
-                    fontFamily: "system-ui"
-                },
-                children: [(0,
-                i.jsx)("h1", {
-                    children: "Tryout"
-                }), p ? (0,
-                i.jsx)("p", {
-                    style: {
-                        color: "crimson"
-                    },
-                    children: p
-                }) : (0,
-                i.jsx)("p", {
-                    children: "Loading…"
-                }), (0,
-                i.jsx)(a(), {
-                    href: "/cadet",
-                    children: "Back"
-                })]
-            })
-        }
+  async function start() {
+    setMsg(null);
+
+    try {
+      const r = await fetch("/api/cadet/start", { method: "POST" });
+
+      // IMPORTANT: read raw first so we can detect "Next.js chunk" responses
+      const raw = await r.text();
+      let data: any = null;
+      try { data = JSON.parse(raw); } catch { data = { raw: raw.slice(0, 250) }; }
+
+      if (!r.ok) {
+        setMsg(`START FAILED ${r.status}: ` + (data?.error || JSON.stringify(data)));
+        return;
+      }
+
+      await refresh();
+    } catch (e: any) {
+      setMsg("Start crashed: " + String(e?.message || e));
     }
-}, function(e) {
-    e.O(0, [664, 642, 888, 774, 179], function() {
-        return e(e.s = 1259)
-    }),
-    _N_E = e.O()
-}
-]);
+  }
 
-  
-
+  // Debounced save to DB
   function updateNotes(next: string) {
     setNotes(next);
-  
-    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
+    if (saveRef.current) clearTimeout(saveRef.current);
+    saveRef.current = setTimeout(() => {
       fetch("/api/cadet/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ content: next })
       }).catch(() => {});
     }, 500);
-  }
-  
 
+    // Optional realtime broadcast (if you want socket-driven updates)
+    if (socket && status?.team?.id && status?.team?.members?.[0]?.userId) {
+      // If you have userId on client, pass it; otherwise remove this block.
+    }
+  }
 
   if (!status) {
     return (
@@ -480,62 +128,35 @@ useEffect(() => {
   return (
     <main style={{ padding: 24, fontFamily: "system-ui" }}>
       <h1>Tryout: {status.team.name}</h1>
-      <pre style={{ background: "#f6f6f6", padding: 12, borderRadius: 8 }}>
-  {JSON.stringify(
-    {
-      state: status?.state,
-      teamId: status?.team?.id,
-      session: status?.session,
-      endsAt: status?.session?.endsAt
-    },
-    null,
-    2
-  )}
-</pre>
 
       {status.state !== "ACTIVE" ? (
-        
         <>
           <p>Status: <b>{status.state}</b></p>
           <button onClick={start}>Start 4-hour tryout</button>
           <p style={{ marginTop: 8, color: "#555" }}>
-            Starting activates the timer for the whole team. If it expires, you’ll be locked until an instructor unlocks attempt #2.
+            Starting activates the timer for the whole team.
           </p>
         </>
       ) : (
         <>
           <p>Time remaining: <b style={{ fontSize: 18 }}>{remaining}</b></p>
+
           <p style={{ marginTop: 8 }}>
-  <b>Case Files:</b>{" "}
-  <Link href="/cadet/case">Overview</Link> ·{" "}
-  <Link href="/cadet/people">People</Link> ·{" "}
-  <Link href="/cadet/locations">Locations</Link> ·{" "}
-  <Link href="/cadet/evidence">Evidence</Link>
-</p>
+            <b>Case Files:</b>{" "}
+            <Link href="/cadet/case">Overview</Link> ·{" "}
+            <Link href="/cadet/people">People</Link> ·{" "}
+            <Link href="/cadet/locations">Locations</Link> ·{" "}
+            <Link href="/cadet/evidence">Evidence</Link>
+          </p>
 
           <section style={{ marginTop: 16 }}>
-            <h2>Mission Brief (Pilot)</h2>
-            <p><b>Case:</b> Ghost Signal in the Mid Rim</p>
-            <ul>
-              <li>Identify the compromised supply officer</li>
-              <li>Map the contact chain (aliases)</li>
-              <li>Determine objective + recommended op plan</li>
-              <li>Maintain OPSEC: don’t copy/share outside this console</li>
-            </ul>
-            <p style={{ color: "#666" }}>
-              In v1, evidence is embedded as narrative. In v2 we’ll add gated artifacts + tasks + red herrings.
-            </p>
-          </section>
-
-          <section style={{ marginTop: 16 }}>
-            <h2>Shared Team Notes (Realtime)</h2>
+            <h2>Shared Team Notes</h2>
             <textarea
               value={notes}
               onChange={(e) => updateNotes(e.target.value)}
               rows={16}
               style={{ width: "100%", fontFamily: "ui-monospace, Menlo, monospace" }}
             />
-            <p style={{ color: "#666" }}>Edits are logged in the audit trail.</p>
           </section>
 
           <section style={{ marginTop: 16 }}>
