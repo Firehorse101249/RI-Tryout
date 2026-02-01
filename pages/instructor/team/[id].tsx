@@ -107,7 +107,7 @@ export default function TeamDetail() {
                 {Array.isArray(s.answersJson?.responses) ? (
   <div style={{ paddingTop: 8 }}>
     {CASE.finalQuestions.map((q, i) => {
-  const rubric = (RUBRIC as any[]).find((r) => r.q === i + 1);
+  const rubric = RUBRIC.find((r) => r.q === i + 1);
 
   return (
     <div key={q} style={{ marginBottom: 12 }}>
