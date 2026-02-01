@@ -108,7 +108,8 @@ model Submission {
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  model NoteEntry {
+}
+model NoteEntry {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
 
@@ -121,4 +122,4 @@ model Submission {
 
   @@index([teamId, createdAt])
 }
-}
+
