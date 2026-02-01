@@ -146,7 +146,7 @@ model AccessGrant {
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@unique([teamId, attemptNumber, userId])
+  @@unique([teamId, attemptNumber, userId], name: "teamId_attemptNumber_userId")
   @@index([teamId, attemptNumber])
 }
 
