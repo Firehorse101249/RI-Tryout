@@ -24,6 +24,12 @@ app.prepare().then(async () => {
   const server = express();
   server.use(express.json({ limit: "1mb" }));
 
+  server.use("/api", (req, res, next) => {
+    console.log("API HIT:", req.method, req.url);
+    next();
+  });
+  
+
   server.get("/api/cadet/case-slice", async (req, res) => {
     const u = requireAuth(req);
     if (!u) return json(res, 401, { error: "Unauthorized" });
@@ -581,6 +587,8 @@ server.get("/api/cadet/notes", async (req, res) => {
     const u = requireAuth(req);
     if (!u) return json(res, 401, { error: "Unauthorized" });
     if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
+   
+    console.log("HIT /api/cadet/start");
 
     const user = await prisma.user.findUnique({ where: { id: u.id } });
     if (user.lockedReason) return json(res, 403, { error: "Locked", lockedReason: user.lockedReason });
