@@ -29,7 +29,7 @@ export async function requireCadetActive(userId: string) {
       });
 
       const members = await prisma.teamMember.findMany({ where: { teamId: team.id } });
-      const ids = members.map(m => m.userId);
+      const ids = members.map((m: any) => m.userId);
 
       await prisma.user.updateMany({
         where: { id: { in: ids } },

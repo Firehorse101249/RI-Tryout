@@ -63,7 +63,7 @@ export default function TeamDetail() {
 
       <h2 style={{ marginTop: 16 }}>Members</h2>
       <ul>
-        {team.members.map((m: any) => (
+      {team.members.map((m: any) => (
           <li key={m.user.id}>
             {m.user.username} — role: {m.user.role} — locked: <b>{m.user.lockedReason ? "YES" : "no"}</b>
           </li>
