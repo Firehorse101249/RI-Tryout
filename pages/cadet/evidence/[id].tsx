@@ -110,7 +110,6 @@ export default function EvidencePage() {
 
         <p style={{ color: "#666" }}>
           Your slice: <b>{slice!.bucketIndex + 1}</b> / <b>{slice!.bucketCount}</b>{" "}
-          (attempt {slice!.attemptNumber})
         </p>
 
         <p style={{ marginTop: 16 }}>
@@ -131,7 +130,7 @@ export default function EvidencePage() {
 
         <p style={{ color: "#666" }}>
           Access slice: <b>{slice!.bucketIndex + 1}</b> / <b>{slice!.bucketCount}</b>{" "}
-          (attempt {slice!.attemptNumber})
+    
         </p>
 
         <p>
