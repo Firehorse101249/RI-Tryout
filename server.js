@@ -22,7 +22,41 @@ const PORT = process.env.PORT || 3000;
 function json(res, code, obj) {
   res.status(code).json(obj);
 }
-
+async function ensureAccessGrants(teamId, attemptNumber) {
+    const members = await prisma.teamMember.findMany({
+      where: { teamId },
+      orderBy: { userId: "asc" } // stable / fair
+    });
+  
+    const bucketCount = Math.max(1, members.length);
+  
+    for (let i = 0; i < members.length; i++) {
+      await prisma.accessGrant.upsert({
+        where: {
+          teamId_attemptNumber_userId: {
+            teamId,
+            attemptNumber,
+            userId: members[i].userId
+          }
+        },
+        update: {
+          bucketIndex: i % bucketCount,
+          bucketCount
+        },
+        create: {
+          teamId,
+          attemptNumber,
+          userId: members[i].userId,
+          bucketIndex: i % bucketCount,
+          bucketCount
+        }
+      });
+    }
+  
+    return { bucketCount, members: members.length };
+  }
+  
+  
 app.prepare().then(async () => {
   const server = express();
   server.use(express.json({ limit: "1mb" }));
@@ -48,17 +82,35 @@ app.prepare().then(async () => {
       return json(res, 403, { error: "Tryout not active" });
     }
   
-    const grant = await prisma.accessGrant.findUnique({
-      where: {
-        teamId_attemptNumber_userId: {
-          teamId: member.teamId,
-          attemptNumber: session.attemptNumber,
-          userId: u.id
+    let grant = await prisma.accessGrant.findUnique({
+        where: {
+          teamId_attemptNumber_userId: {
+            teamId: member.teamId,
+            attemptNumber: session.attemptNumber,
+            userId: u.id
+          }
         }
-      }
-    });
+      });
   
-    if (!grant) return json(res, 403, { error: "No access grant" });
+      // auto-heal missing grants
+      if (!grant) {
+        await ensureAccessGrants(member.teamId, session.attemptNumber);
+  
+        grant = await prisma.accessGrant.findUnique({
+          where: {
+            teamId_attemptNumber_userId: {
+              teamId: member.teamId,
+              attemptNumber: session.attemptNumber,
+              userId: u.id
+            }
+          }
+        });
+      }
+  
+      if (!grant) return json(res, 403, { error: "NO_ACCESS_GRANT" });
+  
+  
+
   
     const { kind } = req.query;
     if (!["evidence", "people", "locations"].includes(kind)) {
@@ -599,64 +651,50 @@ server.get("/api/cadet/notes", async (req, res) => {
     if (!member) return json(res, 400, { error: "No team" });
   
     const teamId = member.teamId;
-    const existing = await prisma.teamSession.findUnique({ where: { teamId } });
   
-    // If already active, just rejoin
+    // If already active, just rejoin and ensure grants exist
+    const existing = await prisma.teamSession.findUnique({ where: { teamId } });
     if (existing && existing.status === "ACTIVE") {
+      const g = await ensureAccessGrants(teamId, existing.attemptNumber);
+  
+      await audit({
+        teamId,
+        userId: u.id,
+        type: "ACCESS_BUCKETS_ASSIGNED",
+        payload: { attemptNumber: existing.attemptNumber, bucketCount: g.bucketCount, members: g.members }
+      });
+  
       await audit({ teamId, userId: u.id, type: "TRYOUT_START_JOIN_ACTIVE" });
       return json(res, 200, { ok: true, session: existing });
     }
   
+    // Start fresh
     const now = new Date();
     const endsAt = new Date(now.getTime() + 4 * 60 * 60 * 1000);
   
-    // Start / restart session
     const newSession = await prisma.teamSession.upsert({
       where: { teamId },
       update: { status: "ACTIVE", startedAt: now, endsAt },
       create: { teamId, status: "ACTIVE", startedAt: now, endsAt, attemptNumber: 1 }
     });
   
-    // Assign buckets ONCE per attempt
-    const members = await prisma.teamMember.findMany({
-      where: { teamId },
-      orderBy: { userId: "asc" }
-    });
-  
-    const bucketCount = Math.max(1, members.length);
-    const attemptNumber = newSession.attemptNumber;
-  
-    for (let i = 0; i < members.length; i++) {
-      await prisma.accessGrant.upsert({
-        where: {
-          teamId_attemptNumber_userId: {
-            teamId,
-            attemptNumber,
-            userId: members[i].userId
-          }
-        },
-        update: {
-          bucketIndex: i % bucketCount,
-          bucketCount
-        },
-        create: {
-          teamId,
-          attemptNumber,
-          userId: members[i].userId,
-          bucketIndex: i % bucketCount,
-          bucketCount
-        }
-      });
-    }
+    // THIS is why newSession matters: we need its attemptNumber
+    const g = await ensureAccessGrants(teamId, newSession.attemptNumber);
   
     await audit({
       teamId,
       userId: u.id,
       type: "ACCESS_BUCKETS_ASSIGNED",
-      payload: { attemptNumber, bucketCount, members: members.length }
+      payload: { attemptNumber: newSession.attemptNumber, bucketCount: g.bucketCount, members: g.members }
     });
   
-    await audit({ teamId, userId: u.id, type: "TRYOUT_STARTED", payload: { endsAt: newSession.endsAt } });
+    await audit({
+      teamId,
+      userId: u.id,
+      type: "TRYOUT_STARTED",
+      payload: { endsAt: newSession.endsAt }
+    });
+  
     return json(res, 200, { ok: true, session: newSession });
   });
   
