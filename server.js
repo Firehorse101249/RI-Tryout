@@ -584,9 +584,12 @@ server.get("/api/cadet/notes", async (req, res) => {
   
 
   server.post("/api/cadet/start", async (req, res) => {
-    const u = requireAuth(req);
-    if (!u) return json(res, 401, { error: "Unauthorized" });
-    if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
+    try {
+      console.log("HIT /api/cadet/start");
+  
+      const u = requireAuth(req);
+      if (!u) return json(res, 401, { error: "Unauthorized" });
+      if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
   
       const user = await prisma.user.findUnique({ where: { id: u.id } });
       if (!user) return json(res, 401, { error: "Unauthorized" });
@@ -599,13 +602,13 @@ server.get("/api/cadet/notes", async (req, res) => {
   
       const session = await prisma.teamSession.findUnique({ where: { teamId } });
   
-      // If already active, don't re-assign buckets (keeps it stable)
+      // If already active, just return it
       if (session && session.status === "ACTIVE") {
         await audit({ teamId, userId: u.id, type: "TRYOUT_START_JOIN_ACTIVE" });
         return json(res, 200, { ok: true, session });
       }
   
-      // Start (or restart)
+      // Start tryout
       const now = new Date();
       const endsAt = new Date(now.getTime() + 4 * 60 * 60 * 1000);
   
@@ -615,14 +618,14 @@ server.get("/api/cadet/notes", async (req, res) => {
         create: { teamId, status: "ACTIVE", startedAt: now, endsAt, attemptNumber: 1 }
       });
   
-      const attemptNumber = newSession.attemptNumber || 1;
+      const attemptNumber = newSession.attemptNumber;
   
       // -----------------------------
       // ACCESS GRANT ASSIGNMENT (intel split)
       // -----------------------------
       const members = await prisma.teamMember.findMany({
         where: { teamId },
-        orderBy: { userId: "asc" } // stable/fair
+        orderBy: { userId: "asc" } // stable order
       });
   
       const bucketCount = Math.max(1, members.length);
@@ -658,13 +661,13 @@ server.get("/api/cadet/notes", async (req, res) => {
       });
   
       await audit({ teamId, userId: u.id, type: "TRYOUT_STARTED", payload: { endsAt: newSession.endsAt } });
-  
       return json(res, 200, { ok: true, session: newSession });
     } catch (e) {
       console.error("CADET_START_FAIL:", e);
       return json(res, 500, { error: "CADET_START_FAIL", detail: String(e?.message || e) });
     }
   });
+  
   
   
 
