@@ -29,37 +29,58 @@ export default function PersonPage() {
   return (
     <EvidenceGuard>
       <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 1000 }}>
-        <h1>
-          {p.id}: {p.name}
-        </h1>
+      <h1>
+  {p.id}: {p.name}
+</h1>
 
-        <p>
-          <b>Role:</b> {p.role}
-        </p>
-        <p style={{ color: "#666" }}>{p.details.slice(0, 140)}…</p>
+<p>
+  <b>Role:</b> {p.role}
+</p>
 
-        <h2>Profile</h2>
-        <p style={{ lineHeight: 1.6 }}>{p.details}</p>
+{p.alias.length > 0 && (
+  <p>
+    <b>Aliases:</b> {p.alias.join(", ")}
+  </p>
+)}
 
-        {p.connections?.length ? (
-          <>
-            <h2>Connections</h2>
-            <ul>
-              {p.connections.map((c: any) => (
-                <li key={c.kind + ":" + c.id}>
-                  {c.kind === "person" ? (
-                    <>Person: <Link href={`/cadet/people/${c.id}`}>{c.id}</Link></>
-                  ) : c.kind === "location" ? (
-                    <>Location: <Link href={`/cadet/locations/${c.id}`}>{c.id}</Link></>
-                  ) : (
-                    <>Evidence: <Link href={`/cadet/evidence/${c.id}`}>{c.id}</Link></>
-                  )}
-                  {c.note ? ` — ${c.note}` : ""}
-                </li>
-              ))}
-            </ul>
-          </>
-        ) : null}
+<h2>Profile</h2>
+<p style={{ lineHeight: 1.6 }}>{p.bio}</p>
+
+{p.redFlags.length > 0 && (
+  <>
+    <h2>Red Flags</h2>
+    <ul>
+      {p.redFlags.map((r) => (
+        <li key={r}>{r}</li>
+      ))}
+    </ul>
+  </>
+)}
+
+{p.credibleInfo.length > 0 && (
+  <>
+    <h2>Credible Intelligence</h2>
+    <ul>
+      {p.credibleInfo.map((c) => (
+        <li key={c}>{c}</li>
+      ))}
+    </ul>
+  </>
+)}
+
+{p.knownConnections.length > 0 && (
+  <>
+    <h2>Known Connections</h2>
+    <ul>
+      {p.knownConnections.map((cid) => (
+        <li key={cid}>
+          <Link href={`/cadet/people/${cid}`}>{cid}</Link>
+        </li>
+      ))}
+    </ul>
+  </>
+)}
+
 
         <p style={{ marginTop: 16 }}>
           <Link href="/cadet/people">Back</Link> · <Link href="/cadet/case">Case</Link> ·{" "}
