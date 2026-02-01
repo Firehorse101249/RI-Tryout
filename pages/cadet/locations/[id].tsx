@@ -33,7 +33,7 @@ export default function LocationPage() {
           {loc.id}: {loc.name}
         </h1>
 
-        <p style={{ color: "#666" }}>{loc.summary}</p>
+        <p style={{ color: "#666" }}>{loc.name}</p>
 
         <h2>Details</h2>
         <p style={{ lineHeight: 1.6 }}>{loc.details}</p>
