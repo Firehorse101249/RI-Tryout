@@ -25,6 +25,7 @@ export default function Final() {
 
   async function submit() {
     setMsg(null);
+  
     const r = await fetch("/api/cadet/submit", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -32,15 +33,12 @@ export default function Final() {
         answers: { responses: answers }
       })
     });
-    const data = await r.json();
-    if (!r.ok) return setMsg(data.error || "Submit failed");
-    setMsg("Submitted. Instructor will grade.");
-  }
   
     const data = await r.json();
     if (!r.ok) return setMsg(data.error || "Submit failed");
     setMsg("Submitted. Instructor will grade.");
   }
+  
 
   return (
     <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900 }}>
