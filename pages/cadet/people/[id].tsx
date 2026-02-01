@@ -1,53 +1,71 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
+import { useEffect } from "react";
 import { CASE } from "../../../lib/caseData";
 import EvidenceGuard from "../../../ui/EvidenceGuard";
 
 export default function PersonPage() {
   const router = useRouter();
   const id = String(router.query.id || "");
-  const person = CASE.people.find(p => p.id === id);
-
-  if (!person) return <main style={{ padding: 24, fontFamily: "system-ui" }}>Not found.</main>;
-
-  return (
-    <EvidenceGuard>
-      <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 1000 }}>
-        <h1>{person.name}</h1>
-        <p><b>Role:</b> {person.role}</p>
-        <p><b>Aliases:</b> {person.alias.join(", ")}</p>
-
-        <h2>Bio</h2>
-        <p>{person.bio}</p>
-
-        <h2>Credible Info</h2>
-        <ul>{person.credibleInfo.map(x => <li key={x}>{x}</li>)}</ul>
-
-        <h2>Red Flags</h2>
-        <ul>{person.redFlags.map(x => <li key={x}>{x}</li>)}</ul>
-
-        <h2>Known Connections</h2>
-        <ul>
-          {person.knownConnections.map(pid => {
-            const other = CASE.people.find(p => p.id === pid);
-            return other ? (
-              <li key={pid}><Link href={`/cadet/people/${pid}`}>{other.name}</Link> — {other.role}</li>
-            ) : null;
-          })}
-        </ul>
-
-        <p><Link href="/cadet/people">Back to People</Link> · <Link href="/cadet/case">Case</Link></p>
-      </main>
-    </EvidenceGuard>
-  );
+  const p = CASE.people.find((x) => x.id === id);
 
   useEffect(() => {
     if (!id) return;
     fetch("/api/cadet/view", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "people", id })
+      body: JSON.stringify({ kind: "person", id })
     }).catch(() => {});
   }, [id]);
-  
+
+  if (!p) {
+    return (
+      <main style={{ padding: 24, fontFamily: "system-ui" }}>
+        Not found. <Link href="/cadet/people">Back</Link>
+      </main>
+    );
+  }
+
+  return (
+    <EvidenceGuard>
+      <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 1000 }}>
+        <h1>
+          {p.id}: {p.name}
+        </h1>
+
+        <p>
+          <b>Role:</b> {p.role}
+        </p>
+        <p style={{ color: "#666" }}>{p.summary}</p>
+
+        <h2>Profile</h2>
+        <p style={{ lineHeight: 1.6 }}>{p.details}</p>
+
+        {p.connections?.length ? (
+          <>
+            <h2>Connections</h2>
+            <ul>
+              {p.connections.map((c: any) => (
+                <li key={c.kind + ":" + c.id}>
+                  {c.kind === "person" ? (
+                    <>Person: <Link href={`/cadet/people/${c.id}`}>{c.id}</Link></>
+                  ) : c.kind === "location" ? (
+                    <>Location: <Link href={`/cadet/locations/${c.id}`}>{c.id}</Link></>
+                  ) : (
+                    <>Evidence: <Link href={`/cadet/evidence/${c.id}`}>{c.id}</Link></>
+                  )}
+                  {c.note ? ` — ${c.note}` : ""}
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
+
+        <p style={{ marginTop: 16 }}>
+          <Link href="/cadet/people">Back</Link> · <Link href="/cadet/case">Case</Link> ·{" "}
+          <Link href="/cadet/tryout">Tryout</Link>
+        </p>
+      </main>
+    </EvidenceGuard>
+  );
 }
