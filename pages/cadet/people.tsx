@@ -23,7 +23,7 @@ export default function EvidenceList() {
       <ul>
         {items.map((e) => (
           <li key={e.id}>
-            <Link href={`/cadet/evidence/${e.id}`}>{e.id}</Link> — {e.title} ({e.type})
+            <Link href={`/cadet/people/${e.id}`}>{e.id}</Link> — {e.title} ({e.type})
           </li>
         ))}
       </ul>
