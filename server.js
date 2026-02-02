@@ -82,6 +82,10 @@ app.prepare().then(async () => {
       return json(res, 403, { error: "Tryout not active" });
     }
   
+  if (session.finalStartedAt) {
+    return json(res, 403, { error: "FINAL_LOCKED" });
+  }
+
     let grant = await prisma.accessGrant.findUnique({
         where: {
           teamId_attemptNumber_userId: {
@@ -504,12 +508,14 @@ const effectiveBucketIndex = grant.bucketIndex % effectiveBucketCount;
         status: "NOT_STARTED",
         attemptNumber: nextAttempt,
         startedAt: null,
-        endsAt: null
+        endsAt: null,
+        finalStartedAt: null
       },
       create: {
         teamId,
         status: "NOT_STARTED",
-        attemptNumber: 1
+        attemptNumber: 1,
+         finalStartedAt: null
       }
     });
 
@@ -749,6 +755,40 @@ server.get("/api/cadet/notes", async (req, res) => {
       return json(res, 403, { error: String(e.message || e) });
     }
   });
+
+server.post("/api/cadet/final/start", async (req, res) => {
+  const u = requireAuth(req);
+  if (!u) return json(res, 401, { error: "Unauthorized" });
+  if (u.role !== "CADET") return json(res, 403, { error: "Forbidden" });
+
+  const member = await prisma.teamMember.findFirst({
+    where: { userId: u.id },
+    include: { team: { include: { session: true } } }
+  });
+  if (!member) return json(res, 400, { error: "No team" });
+
+  const session = member.team.session;
+  if (!session || session.status !== "ACTIVE") {
+    return json(res, 403, { error: "Tryout not active" });
+  }
+
+  // Idempotent: if already started, keep it
+  const updated = await prisma.teamSession.update({
+    where: { teamId: member.teamId },
+    data: { finalStartedAt: session.finalStartedAt || new Date() }
+  });
+
+  await audit({
+    teamId: member.teamId,
+    userId: u.id,
+    type: "FINAL_STARTED",
+    payload: { at: updated.finalStartedAt }
+  });
+
+  return json(res, 200, { ok: true });
+});
+
+
 
   server.post("/api/cadet/submit", async (req, res) => {
     const u = requireAuth(req);

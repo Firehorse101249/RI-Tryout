@@ -11,17 +11,24 @@ export default function Final() {
   );
   
 
-  useEffect(() => {
-    (async () => {
-      const r = await fetch("/api/cadet/status");
-      const data = await r.json();
-      if (!r.ok) {
-        setMsg(data.error || "Blocked");
-        return;
-      }
-      setStatus(data);
-    })();
-  }, []);
+ useEffect(() => {
+  (async () => {
+    // 🔒 1) Lock evidence / people / locations immediately
+    await fetch("/api/cadet/final/start", {
+      method: "POST"
+    });
+
+    // 📡 2) Then load status as usual
+    const r = await fetch("/api/cadet/status");
+    const data = await r.json();
+    if (!r.ok) {
+      setMsg(data.error || "Blocked");
+      return;
+    }
+    setStatus(data);
+  })();
+}, []);
+
 
   async function submit() {
     setMsg(null);

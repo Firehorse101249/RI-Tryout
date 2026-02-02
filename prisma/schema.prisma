@@ -84,7 +84,9 @@ model TeamSession {
   attemptNumber Int @default(1)
   startedAt    DateTime?
   endsAt       DateTime?
-
+  
+  finalStartedAt DateTime?   // <— ADD THIS
+  
   team Team @relation(fields: [teamId], references: [id], onDelete: Cascade)
 }
 

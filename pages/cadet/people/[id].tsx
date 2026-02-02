@@ -7,8 +7,9 @@ import EvidenceGuard from "../../../ui/EvidenceGuard";
 type SliceResp = {
   bucketIndex: number;
   bucketCount: number;
-  items: any[]; // not used here
+  items: { id: string }[]; // server returns allowed items for this kind
 };
+
 
 export default function PersonPage() {
   const router = useRouter();
@@ -35,22 +36,24 @@ export default function PersonPage() {
 
   // Allowed if this id appears in the returned items for this user's bucket
   const allowed = useMemo(() => {
-    if (!slice || !id) return false;
-    // easiest + safest: server only returns allowed items for this user
-    return true;
-  }, [slice, id]);
+  if (!slice || !id) return false;
+  return slice.items?.some((x) => x.id === id) ?? false;
+}, [slice, id]);
+
 
   // Log view (kind must match server: "people")
   useEffect(() => {
-    if (!id) return;
-    if (!slice) return;
+  if (!id) return;
+  if (!slice) return;
+  if (!allowed) return;
 
-    fetch("/api/cadet/view", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "people", id })
-    }).catch(() => {});
-  }, [id, slice]);
+  fetch("/api/cadet/view", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "people", id })
+  }).catch(() => {});
+}, [id, slice, allowed]);
+
 
   if (!p) {
     return (
@@ -100,6 +103,25 @@ export default function PersonPage() {
   // If you still want restriction messaging, you need server to return allow lists.
   // With current server, slice endpoint returns only "items", so there's no allow[].
   // So we just show the page once slice loads.
+
+if (!allowed) {
+  return (
+    <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900 }}>
+      <h1>Access Restricted</h1>
+      <p>This person profile is not assigned to your slice.</p>
+
+      <p style={{ color: "#666" }}>
+        Your slice: <b>{slice!.bucketIndex + 1}</b> / <b>{slice!.bucketCount}</b>
+      </p>
+
+      <p style={{ marginTop: 16 }}>
+        <Link href="/cadet/people">Back to People</Link> ·{" "}
+        <Link href="/cadet/tryout">Back to Tryout</Link>
+      </p>
+    </main>
+  );
+}
+
 
   return (
     <EvidenceGuard>

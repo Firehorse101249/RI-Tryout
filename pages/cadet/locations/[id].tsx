@@ -7,8 +7,9 @@ import EvidenceGuard from "../../../ui/EvidenceGuard";
 type SliceResp = {
   bucketIndex: number;
   bucketCount: number;
-  items: any[]; // not used here
+  items: { id: string }[]; // returned items are the allowed slice
 };
+
 
 export default function LocationPage() {
   const router = useRouter();
@@ -35,22 +36,25 @@ export default function LocationPage() {
 
   // With your current server response, if we got a slice, we consider it allowed.
   // (Server already bucket-filters what the user can see.)
-  const allowed = useMemo(() => {
-    if (!slice || !id) return false;
-    return true;
-  }, [slice, id]);
+ const allowed = useMemo(() => {
+  if (!slice || !id) return false;
+  return slice.items?.some((x) => x.id === id) ?? false;
+}, [slice, id]);
+
 
   // Log view once slice loads
   useEffect(() => {
-    if (!id) return;
-    if (!slice) return;
+  if (!id) return;
+  if (!slice) return;
+  if (!allowed) return;
 
-    fetch("/api/cadet/view", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ kind: "locations", id })
-    }).catch(() => {});
-  }, [id, slice]);
+  fetch("/api/cadet/view", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ kind: "locations", id })
+  }).catch(() => {});
+}, [id, slice, allowed]);
+
 
   if (!loc) {
     return (
@@ -99,17 +103,23 @@ export default function LocationPage() {
   // With current API, we don't have allow[] to check.
 
   if (!allowed) {
-    return (
-      <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900 }}>
-        <h1>Access Restricted</h1>
-        <p>This location is not assigned to your slice.</p>
-        <p style={{ marginTop: 16 }}>
-          <Link href="/cadet/locations">Back to Locations</Link> ·{" "}
-          <Link href="/cadet/tryout">Back to Tryout</Link>
-        </p>
-      </main>
-    );
-  }
+  return (
+    <main style={{ padding: 24, fontFamily: "system-ui", maxWidth: 900 }}>
+      <h1>Access Restricted</h1>
+      <p>This location is not assigned to your slice.</p>
+
+      <p style={{ color: "#666" }}>
+        Your slice: <b>{slice!.bucketIndex + 1}</b> / <b>{slice!.bucketCount}</b>
+      </p>
+
+      <p style={{ marginTop: 16 }}>
+        <Link href="/cadet/locations">Back to Locations</Link> ·{" "}
+        <Link href="/cadet/tryout">Back to Tryout</Link>
+      </p>
+    </main>
+  );
+}
+
 
   return (
     <EvidenceGuard>
